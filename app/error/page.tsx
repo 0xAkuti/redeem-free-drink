@@ -18,6 +18,14 @@ const errorCopy: Record<string, { title: string; message: string }> = {
     title: "This coupon was already used",
     message: "Each coupon can only be redeemed once.",
   },
+  scheduled: {
+    title: "This coupon is not active yet",
+    message: "Each coupon only works on its assigned Sunday.",
+  },
+  expired: {
+    title: "This coupon has expired",
+    message: "Each coupon only works on its assigned Sunday.",
+  },
   server: {
     title: "We could not redeem that coupon",
     message: "The service is having trouble right now. Try again in a moment.",

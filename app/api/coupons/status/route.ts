@@ -11,11 +11,14 @@ export async function GET(request: Request) {
   try {
     const status = await getCouponStatus(code);
     return NextResponse.json(
-      { exists: status !== "missing", redeemed: status === "redeemed" },
+      {
+        exists: status !== "missing",
+        redeemed: status === "redeemed",
+        status,
+      },
       { status: 200 }
     );
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
-

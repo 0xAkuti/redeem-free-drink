@@ -36,6 +36,9 @@ export async function POST(request: Request) {
     if (status === "missing") {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+    if (status === "scheduled" || status === "expired") {
+      return NextResponse.json({ error: "Coupon not active today", reason: status }, { status: 403 });
+    }
     return NextResponse.json({ error: "Already redeemed" }, { status: 409 });
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });

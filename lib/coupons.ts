@@ -1,19 +1,28 @@
 import { normalizeCouponCode } from "./coupon-code";
+import { getUtcDateString, type SundayCoupon } from "./coupon-schedule";
 import { getRedisClient } from "./redis";
 
-export type CouponStatus = "available" | "redeemed" | "missing";
+export type CouponStatus = "available" | "redeemed" | "missing" | "scheduled" | "expired";
 export type CouponDetails = {
   code: string;
   status: CouponStatus;
   createdAt: string | null;
   redeemedAt: string | null;
   ttlSeconds: number | null;
+  validOn: string | null;
 };
 
 export type CouponSummary = {
   total: number;
   available: number;
   redeemed: number;
+  scheduled: number;
+  expired: number;
+};
+
+type CouponDefinition = {
+  createdAt: string;
+  validOn: string | null;
 };
 
 const definitionPrefix = "coupon:def:";
@@ -42,6 +51,49 @@ function parseOptionalTtl(rawValue: string | undefined) {
   return ttl;
 }
 
+function serializeCouponDefinition(definition: CouponDefinition) {
+  return JSON.stringify(definition);
+}
+
+function parseCouponDefinition(rawValue: string | null): CouponDefinition | null {
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue) as Partial<CouponDefinition>;
+    if (typeof parsed.createdAt === "string") {
+      return {
+        createdAt: parsed.createdAt,
+        validOn: typeof parsed.validOn === "string" ? parsed.validOn : null,
+      };
+    }
+  } catch {
+    // Legacy plain-string definitions fall through below.
+  }
+
+  return {
+    createdAt: rawValue,
+    validOn: null,
+  };
+}
+
+function getCouponWindowStatus(definition: CouponDefinition, today = getUtcDateString()) {
+  if (!definition.validOn) {
+    return "available" as const;
+  }
+
+  if (today < definition.validOn) {
+    return "scheduled" as const;
+  }
+
+  if (today > definition.validOn) {
+    return "expired" as const;
+  }
+
+  return "available" as const;
+}
+
 export async function getCouponStatus(rawCode: string | null | undefined) {
   const code = normalizeCouponCode(rawCode);
   if (code.length !== 8) {
@@ -49,13 +101,19 @@ export async function getCouponStatus(rawCode: string | null | undefined) {
   }
 
   const redis = await getRedisClient();
-  const [exists, redeemed] = await Promise.all([
-    redis.exists(definitionKey(code)),
+  const [definitionRaw, redeemed] = await Promise.all([
+    redis.get(definitionKey(code)),
     redis.exists(redemptionKey(code)),
   ]);
+  const definition = parseCouponDefinition(definitionRaw);
 
-  if (exists !== 1) {
+  if (!definition) {
     return "missing" as const;
+  }
+
+  const windowStatus = getCouponWindowStatus(definition);
+  if (windowStatus !== "available") {
+    return windowStatus;
   }
 
   return redeemed === 1 ? "redeemed" : "available";
@@ -68,6 +126,16 @@ export async function redeemCoupon(rawCode: string | null | undefined) {
   }
 
   const redis = await getRedisClient();
+  const definition = parseCouponDefinition(await redis.get(definitionKey(code)));
+  if (!definition) {
+    return "missing" as const;
+  }
+
+  const windowStatus = getCouponWindowStatus(definition);
+  if (windowStatus !== "available") {
+    return windowStatus;
+  }
+
   const now = new Date().toISOString();
   const result = await redis.eval(
     [
@@ -101,7 +169,10 @@ export async function seedCoupons(codes: string[], options?: { ttlSeconds?: numb
   const results = await Promise.all(
     normalizedCodes.map((code) => {
       const key = definitionKey(code);
-      const value = new Date().toISOString();
+      const value = serializeCouponDefinition({
+        createdAt: new Date().toISOString(),
+        validOn: null,
+      });
 
       if (ttlSeconds) {
         return redis.set(key, value, { EX: ttlSeconds, NX: true });
@@ -120,6 +191,30 @@ export async function seedCoupons(codes: string[], options?: { ttlSeconds?: numb
   return normalizedCodes;
 }
 
+export async function seedSundayCoupons(coupons: SundayCoupon[]) {
+  const redis = await getRedisClient();
+  const createdAt = new Date().toISOString();
+  const results = await Promise.all(
+    coupons.map(({ code, validOn }) =>
+      redis.set(
+        definitionKey(normalizeCouponCode(code)),
+        serializeCouponDefinition({ createdAt, validOn }),
+        { NX: true }
+      )
+    )
+  );
+
+  const duplicates = coupons.filter((_, index) => results[index] !== "OK");
+  if (duplicates.length > 0) {
+    throw new Error(`Duplicate coupon codes already exist: ${duplicates.map((coupon) => coupon.code).join(", ")}`);
+  }
+
+  return coupons.map((coupon) => ({
+    ...coupon,
+    code: normalizeCouponCode(coupon.code),
+  }));
+}
+
 export async function inspectCoupon(rawCode: string | null | undefined) {
   const code = normalizeCouponCode(rawCode);
   if (code.length !== 8) {
@@ -127,20 +222,25 @@ export async function inspectCoupon(rawCode: string | null | undefined) {
   }
 
   const redis = await getRedisClient();
-  const [createdAt, redeemedAt, ttlMs] = await Promise.all([
+  const [definitionRaw, redeemedAt, ttlMs] = await Promise.all([
     redis.get(definitionKey(code)),
     redis.get(redemptionKey(code)),
     redis.pTTL(definitionKey(code)),
   ]);
+  const definition = parseCouponDefinition(definitionRaw);
 
-  const status: CouponStatus = !createdAt ? "missing" : redeemedAt ? "redeemed" : "available";
+  let status: CouponStatus = "missing";
+  if (definition) {
+    status = redeemedAt ? "redeemed" : getCouponWindowStatus(definition);
+  }
 
   return {
     code,
     status,
-    createdAt,
+    createdAt: definition?.createdAt ?? null,
     redeemedAt,
     ttlSeconds: ttlMs > 0 ? Math.ceil(ttlMs / 1000) : null,
+    validOn: definition?.validOn ?? null,
   } satisfies CouponDetails;
 }
 
@@ -162,20 +262,43 @@ export async function revokeCoupon(rawCode: string | null | undefined) {
 export async function summarizeCoupons() {
   const redis = await getRedisClient();
   let total = 0;
+  let available = 0;
   let redeemed = 0;
+  let scheduled = 0;
+  let expired = 0;
 
   for await (const key of redis.scanIterator({ MATCH: `${definitionPrefix}*` })) {
     total += 1;
     const code = codeFromDefinitionKey(key);
-    if (await redis.exists(redemptionKey(code))) {
+    const [definitionRaw, isRedeemed] = await Promise.all([
+      redis.get(key),
+      redis.exists(redemptionKey(code)),
+    ]);
+    const definition = parseCouponDefinition(definitionRaw);
+    if (!definition) {
+      continue;
+    }
+    if (isRedeemed) {
       redeemed += 1;
+      continue;
+    }
+
+    const status = getCouponWindowStatus(definition);
+    if (status === "scheduled") {
+      scheduled += 1;
+    } else if (status === "expired") {
+      expired += 1;
+    } else {
+      available += 1;
     }
   }
 
   return {
     total,
-    available: total - redeemed,
+    available,
     redeemed,
+    scheduled,
+    expired,
   } satisfies CouponSummary;
 }
 

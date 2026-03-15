@@ -2,6 +2,7 @@ type CouponCliOptions = {
   baseUrl?: string;
   count?: number;
   ttlSeconds?: number | null;
+  years?: number;
 };
 
 function parseIntegerFlag(flagName: string, rawValue: string | undefined) {
@@ -40,6 +41,12 @@ export function parseCouponCliArgs(argv: string[]) {
 
     if (arg === "--ttl") {
       options.ttlSeconds = parseIntegerFlag(arg, argv[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--years") {
+      options.years = parseIntegerFlag(arg, argv[index + 1]);
       index += 1;
       continue;
     }

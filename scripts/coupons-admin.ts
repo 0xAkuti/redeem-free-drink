@@ -18,6 +18,7 @@ function usage() {
     "Notes:",
     "  REDIS_URL must be set in the environment.",
     "  --ttl overrides COUPON_TTL_SECONDS for --import.",
+    "  Imported codes remain unrestricted unless you later replace them with dated Sunday coupons.",
   ].join("\n");
 }
 

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 export function useCouponValidity(code: string | null) {
-  const [status, setStatus] = useState<"checking" | "ok" | "invalid" | "redeemed">("checking");
+  const [status, setStatus] = useState<"checking" | "ok" | "invalid" | "redeemed" | "scheduled" | "expired">("checking");
 
   useEffect(() => {
     if (code === null) {
@@ -25,8 +25,12 @@ export function useCouponValidity(code: string | null) {
           setStatus("invalid");
           return;
         }
-        if (!data.exists) {
+        if (!data.exists || data.status === "missing") {
           setStatus("invalid");
+        } else if (data.status === "scheduled") {
+          setStatus("scheduled");
+        } else if (data.status === "expired") {
+          setStatus("expired");
         } else if (data.redeemed) {
           setStatus("redeemed");
         } else {

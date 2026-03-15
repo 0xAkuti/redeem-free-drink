@@ -40,7 +40,7 @@ If `COUPON_TTL_SECONDS` is set, generated coupons expire automatically and redee
   - `404` if the code does not exist or has expired
   - `409` if the code was already redeemed
 
-### Generate coupons
+### Generate Sunday coupons
 
 ```bash
 npm run gen
@@ -49,13 +49,13 @@ npm run gen
 With flags:
 
 ```bash
-npm run gen -- --count 10 --base-url http://localhost:3000 --ttl 14400
+npm run gen -- --years 3 --base-url http://localhost:3000
 ```
 
 Production-oriented batch:
 
 ```bash
-npm run gen:prod -- --count 50 --base-url https://your-domain.vercel.app
+npm run gen:prod -- --years 3 --base-url https://your-domain.vercel.app > coupons.csv
 ```
 
 ### Coupon admin
@@ -72,7 +72,8 @@ npm run coupons -- --import CODE1234,ABCD5678 --ttl 14400
 Both scripts write coupon records to Redis and print CSV-style lines:
 
 ```text
-CODE1234,https://your-domain.vercel.app/?c=CODE1234
+date,code,link
+2026-03-15,CODE1234,https://your-domain.vercel.app/?c=CODE1234
 ```
 
 ### Deploy on Vercel

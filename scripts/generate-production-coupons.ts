@@ -1,28 +1,24 @@
-import { generateCouponCodes } from "../lib/coupon-code";
-import { closeRedisClient, getCouponTtlFromEnv, seedCoupons } from "../lib/coupons";
+import { closeRedisClient, seedSundayCoupons } from "../lib/coupons";
+import { buildSundayCoupons } from "../lib/coupon-schedule";
 import { parseCouponCliArgs } from "./lib/cli";
 
 async function main() {
   const cliOptions = parseCouponCliArgs(process.argv.slice(2));
-  const count = cliOptions.count ?? Number(process.env.COUNT || 50);
   const baseUrl = cliOptions.baseUrl ?? process.env.BASE_URL ?? "http://localhost:3000";
-  const ttlSeconds = cliOptions.ttlSeconds ?? getCouponTtlFromEnv();
+  const years = cliOptions.years ?? Number(process.env.YEARS || 3);
 
-  console.log(`Generating ${count} production coupon codes...`);
-  const codes = generateCouponCodes(count);
-  await seedCoupons(codes, { ttlSeconds });
+  console.error(`Generating Sunday coupon schedule for ${years} year(s)...`);
+  const coupons = buildSundayCoupons(years);
+  await seedSundayCoupons(coupons);
 
-  console.log("\n✅ Generated codes:\n");
-  for (const code of codes) {
-    console.log(`${code},${baseUrl}/?c=${code}`);
+  console.log("date,code,link");
+  for (const coupon of coupons) {
+    console.log(`${coupon.validOn},${coupon.code},${baseUrl}/?c=${coupon.code}`);
   }
   
-  console.log(`\n📊 Total: ${count} codes generated`);
-  console.log(`🌐 Base URL: ${baseUrl}`);
-  if (ttlSeconds) {
-    console.log(`⏳ TTL: ${ttlSeconds} seconds`);
-  }
-  console.log("🛠️  Flags: --count <n> --base-url <url> --ttl <seconds>");
+  console.error(`Generated ${coupons.length} Sunday coupons.`);
+  console.error(`Base URL: ${baseUrl}`);
+  console.error("Flags: --years <n> --base-url <url>");
 }
 
 main()

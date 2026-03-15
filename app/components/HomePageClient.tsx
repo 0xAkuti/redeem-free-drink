@@ -77,7 +77,15 @@ export default function HomePageClient({ initialCode }: HomePageClientProps) {
         return;
       }
 
-      const reason = response.status === 409 ? "redeemed" : response.status === 404 ? "invalid" : "server";
+      let reason = "server";
+      if (response.status === 409) {
+        reason = "redeemed";
+      } else if (response.status === 404) {
+        reason = "invalid";
+      } else if (response.status === 403) {
+        const payload = (await response.json().catch(() => null)) as { reason?: string } | null;
+        reason = payload?.reason === "scheduled" ? "scheduled" : "expired";
+      }
       router.replace(`/error?reason=${reason}&c=${encodeURIComponent(code)}`);
     } catch {
       router.replace(`/error?reason=server&c=${encodeURIComponent(code)}`);
@@ -125,6 +133,18 @@ export default function HomePageClient({ initialCode }: HomePageClientProps) {
     if (status === "redeemed") {
       const suffix = code ? `&c=${encodeURIComponent(code)}` : "";
       router.replace(`/error?reason=redeemed${suffix}`);
+      return;
+    }
+
+    if (status === "scheduled") {
+      const suffix = code ? `&c=${encodeURIComponent(code)}` : "";
+      router.replace(`/error?reason=scheduled${suffix}`);
+      return;
+    }
+
+    if (status === "expired") {
+      const suffix = code ? `&c=${encodeURIComponent(code)}` : "";
+      router.replace(`/error?reason=expired${suffix}`);
     }
   }, [status, code, router]);
 
