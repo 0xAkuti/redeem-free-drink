@@ -7,7 +7,7 @@ export function useCouponValidity(code: string | null) {
 
   useEffect(() => {
     if (code === null) {
-      setStatus("checking");
+      setStatus("invalid");
       return;
     }
     if (!code) {
