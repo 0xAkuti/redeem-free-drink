@@ -1,9 +1,18 @@
-import { closeRedisClient, getCouponTtlFromEnv, inspectCoupon, revokeCoupon, seedCoupons, summarizeCoupons } from "../lib/coupons";
+import {
+  closeRedisClient,
+  getCouponTtlFromEnv,
+  inspectCoupon,
+  resetCoupon,
+  revokeCoupon,
+  seedCoupons,
+  summarizeCoupons,
+} from "../lib/coupons";
 import { normalizeCouponCode } from "../lib/coupon-code";
 
 type AdminAction =
   | { type: "summary" }
   | { type: "inspect"; code: string }
+  | { type: "reset"; code: string }
   | { type: "revoke"; code: string }
   | { type: "import"; codes: string[]; ttlSeconds: number | null };
 
@@ -12,6 +21,7 @@ function usage() {
     "Usage:",
     "  npm run coupons -- --summary",
     "  npm run coupons -- --inspect CODE1234",
+    "  npm run coupons -- --reset CODE1234",
     "  npm run coupons -- --revoke CODE1234",
     "  npm run coupons -- --import CODE1234,ABCD5678 [--ttl 14400]",
     "",
@@ -76,6 +86,12 @@ function parseAdminArgs(argv: string[]): AdminAction {
       continue;
     }
 
+    if (arg === "--reset") {
+      action = { type: "reset", code: normalizeCouponCode(argv[index + 1]) };
+      index += 1;
+      continue;
+    }
+
     if (arg === "--import") {
       action = { type: "import", codes: parseCodeList(argv[index + 1]), ttlSeconds: null };
       index += 1;
@@ -126,6 +142,12 @@ async function main() {
 
   if (action.type === "revoke") {
     const result = await revokeCoupon(action.code);
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  if (action.type === "reset") {
+    const result = await resetCoupon(action.code);
     console.log(JSON.stringify(result, null, 2));
     return;
   }

@@ -259,6 +259,21 @@ export async function revokeCoupon(rawCode: string | null | undefined) {
   };
 }
 
+export async function resetCoupon(rawCode: string | null | undefined) {
+  const code = normalizeCouponCode(rawCode);
+  if (code.length !== 8) {
+    throw new Error("Coupon codes must be 8 characters");
+  }
+
+  const redis = await getRedisClient();
+  const deleted = await redis.del(redemptionKey(code));
+
+  return {
+    code,
+    deleted,
+  };
+}
+
 export async function summarizeCoupons() {
   const redis = await getRedisClient();
   let total = 0;

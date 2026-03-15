@@ -99,6 +99,7 @@ Inspect the current Redis-backed coupon set:
 ```bash
 npm run coupons -- --summary
 npm run coupons -- --inspect CODE1234
+npm run coupons -- --reset CODE1234
 npm run coupons -- --revoke CODE1234
 npm run coupons -- --import CODE1234,ABCD5678 --ttl 14400
 ```
@@ -107,6 +108,7 @@ Admin notes:
 
 - `--summary` reports counts for `available`, `redeemed`, `scheduled`, and `expired`
 - `--inspect` shows the stored schedule and redemption state for one code
+- `--reset` clears the redeemed marker for one code but keeps the code itself
 - `--revoke` deletes a code and its redemption marker
 - `--import` creates unrestricted codes; it does not assign Sunday dates
 
