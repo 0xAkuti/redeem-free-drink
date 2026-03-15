@@ -7,6 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "coupons": "tsx scripts/coupons-admin.ts",
     "gen": "tsx scripts/generate-coupons.ts",
     "gen:prod": "tsx scripts/generate-production-coupons.ts"
   },

@@ -21,8 +21,6 @@ Set these env vars locally:
 
 ```bash
 export REDIS_URL=redis://default:password@host:port
-export BASE_URL=http://localhost:3000
-export COUNT=10
 ```
 
 Optional:
@@ -31,7 +29,7 @@ Optional:
 export COUPON_TTL_SECONDS=14400
 ```
 
-If `COUPON_TTL_SECONDS` is set, generated coupons expire automatically and redeemed markers expire with the same remaining TTL.
+If `COUPON_TTL_SECONDS` is set, generated coupons expire automatically and redeemed markers expire with the same remaining TTL. `COUNT` and `BASE_URL` can still be provided as env vars, but the scripts now accept CLI flags for those non-secret values.
 
 ### Coupon API
 
@@ -47,10 +45,27 @@ If `COUPON_TTL_SECONDS` is set, generated coupons expire automatically and redee
 npm run gen
 ```
 
+With flags:
+
+```bash
+npm run gen -- --count 10 --base-url http://localhost:3000 --ttl 14400
+```
+
 Production-oriented batch:
 
 ```bash
-BASE_URL=https://your-domain.vercel.app COUNT=50 npm run gen:prod
+npm run gen:prod -- --count 50 --base-url https://your-domain.vercel.app
+```
+
+### Coupon admin
+
+Inspect the current Redis-backed coupon set:
+
+```bash
+npm run coupons -- --summary
+npm run coupons -- --inspect CODE1234
+npm run coupons -- --revoke CODE1234
+npm run coupons -- --import CODE1234,ABCD5678 --ttl 14400
 ```
 
 Both scripts write coupon records to Redis and print CSV-style lines:
@@ -61,7 +76,6 @@ CODE1234,https://your-domain.vercel.app/?c=CODE1234
 
 ### Deploy on Vercel
 
-1. Add Upstash Redis from the Vercel Marketplace, or manually set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.
 1. Add a Redis provider from the Vercel Marketplace, or manually set `REDIS_URL`.
 2. Set `BASE_URL` to your public site URL if you use the generation scripts in Vercel or CI.
 3. Deploy normally. No Prisma generation, migrations, or SQL database setup is required.
