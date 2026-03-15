@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
 const redeemCookieName = "redeem_session";
-const redeemCookieMaxAgeSeconds = 300;
+const redeemCookieMaxAgeSeconds = 60;
 
 function getRedeemSessionSecret() {
   const secret = process.env.REDEEM_SESSION_SECRET;
