@@ -185,6 +185,9 @@ export default function HomePageClient({ initialCode }: HomePageClientProps) {
               ▶
             </button>
           </div>
+          <p className="mt-3 text-center text-xs text-gray-600">
+            Please ask a staff member to redeem this for you when you are ready to order.
+          </p>
 
           <footer className="w-full max-w-sm mx-auto mt-32 pb-2 flex items-center justify-between text-xs text-gray-500">
             <div className="flex items-center gap-2">
