@@ -21,6 +21,7 @@ Set these env vars locally:
 
 ```bash
 export REDIS_URL=redis://default:password@host:port
+export REDEEM_SESSION_SECRET=replace-this-with-a-random-secret
 ```
 
 Optional:
